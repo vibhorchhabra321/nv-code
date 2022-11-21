@@ -1,0 +1,227 @@
+name: Windows-Self-Service CI Pipeline
+on:
+  workflow_dispatch:
+  schedule:
+  - cron: "0 4 * * 3"
+
+env:
+  REGISTRY: ghcr.io
+  EU_USERNAME: ${{ secrets.EU_USERNAME }}
+  EU_PASSWORD: ${{ secrets.EU_PASSWORD }}
+
+jobs:
+  build-base-core:
+    name: 2019 core
+    uses: LexisNexis-RBA/Windows-Self-Service/.github/workflows/base-definition.yml@master
+    with: 
+      playbook: base.yml
+      build_name: 'Weekly Windows 2019 Core Build'
+      ami_name: 'windows-2019-core'
+      application: windows
+      base: 'Windows_Server-2019-English-Core-Base-2*'
+      ami_public: 'true'
+      os: 'Server2019Core'
+    secrets: inherit
+
+  build-base-full:
+    name: 2019 full
+    uses: LexisNexis-RBA/Windows-Self-Service/.github/workflows/base-definition.yml@master
+    with: 
+      playbook: base.yml
+      build_name: 'Weekly Windows 2019 Full Build'
+      ami_name: 'windows-2019-full'
+      application: windows
+      base: 'Windows_Server-2019-English-Full-Base-2*'
+      ami_public: 'true'
+      os: 'Server2019Full'
+    secrets: inherit
+
+
+  build-base-core-iis:
+    name: 2019 Core IIS
+    needs: build-base-core
+    uses: LexisNexis-RBA/Windows-Self-Service/.github/workflows/base-definition.yml@master
+    with: 
+      playbook: iis.yml
+      build_name: 'Weekly Windows 2019 Core (IIS) Build'
+      ami_name: 'windows-2019-core-iis'
+      application: iis
+      base: 'windows-2019-core*'
+      ami_public: 'false'
+      os: 'Server2019Core'
+    secrets: inherit
+
+  build-base-full-iis:
+    name: 2019 Full IIS
+    needs: build-base-full
+    uses: LexisNexis-RBA/Windows-Self-Service/.github/workflows/base-definition.yml@master
+    with: 
+      playbook: iis.yml
+      build_name: 'Weekly Windows 2019 Full (IIS) Build'
+      ami_name: 'windows-2019-full-iis'
+      application: iis
+      base: 'windows-2019-full*'
+      ami_public: 'false'
+      os: 'Server2019Full'
+    secrets: inherit
+
+  build-container:
+    name: 2019 Containers
+    needs: build-base-core
+    uses: LexisNexis-RBA/Windows-Self-Service/.github/workflows/base-definition.yml@master
+    with: 
+      playbook: containers.yml
+      build_name: 'Weekly Windows 2019 Core (Containers) Build'
+      ami_name: 'windows-2019-core-containers'
+      application: containers
+      base: 'windows-2019-core*'
+      ami_public: 'false'
+      os: 'Server2019Core'
+    secrets: inherit
+  
+  build-bridger-base:
+    name: Bridger Base
+    needs: build-base-full-iis
+    uses: LexisNexis-RBA/Windows-Self-Service/.github/workflows/base-definition.yml@master
+    with: 
+      playbook: bridger.yml
+      build_name: 'Weekly Bridger 2019 Base Build'
+      ami_name: 'bridger-base-2019'
+      application: bridger
+      base: 'windows-2019-full-iis*'
+      ami_public: 'false'
+      os: 'Server2019'
+    secrets: inherit
+
+  build-clm-base:
+    name: CLM Base
+    needs: build-base-full-iis
+    uses: LexisNexis-RBA/Windows-Self-Service/.github/workflows/base-definition.yml@master
+    with: 
+      playbook: clm.yml
+      build_name: 'Weekly CLM 2019 Base Build'
+      ami_name: 'clm-base-2019'
+      application: clm
+      base: 'windows-2019-full-iis*'
+      ami_public: 'false'
+      os: 'Server2019'
+    secrets: inherit
+
+################
+# Cleanup AMIs #
+################
+
+  cleanup-bridger-ireland:
+    name: Bridger-Ireland
+    needs: build-bridger-base
+    uses: LexisNexis-RBA/Windows-Self-Service/.github/workflows/cleanup-definition.yml@master
+    with: 
+      base: 'bridger-base-201*'
+      region: 'eu-west-1'
+    secrets: inherit
+
+  cleanup-clm-ireland:
+    name: CLM-Ireland
+    needs: build-clm-base
+    uses: LexisNexis-RBA/Windows-Self-Service/.github/workflows/cleanup-definition.yml@master
+    with: 
+      base: 'clm-base-201*'
+      region: 'eu-west-1'
+    secrets: inherit
+
+  cleanup-windows-ireland:
+    name: Windows-Ireland
+    needs: [build-bridger-base, build-clm-base]
+    uses: LexisNexis-RBA/Windows-Self-Service/.github/workflows/cleanup-definition.yml@master
+    with: 
+      base: 'windows-201*'
+      region: 'eu-west-1'
+    secrets: inherit
+
+# UK
+  cleanup-bridger-uk:
+    name: Bridger-UK
+    needs: build-bridger-base
+    uses: LexisNexis-RBA/Windows-Self-Service/.github/workflows/cleanup-definition.yml@master
+    with: 
+      base: 'bridger-base-201*'
+      region: 'eu-west-2'
+    secrets: inherit
+
+  cleanup-clm-uk:
+    name: CLM-UK
+    needs: build-clm-base
+    uses: LexisNexis-RBA/Windows-Self-Service/.github/workflows/cleanup-definition.yml@master
+    with: 
+      base: 'clm-base-201*'
+      region: 'eu-west-2'
+    secrets: inherit
+
+  cleanup-windows-uk:
+    name: WINDOWS-UK
+    needs: [build-bridger-base, build-clm-base]
+    uses: LexisNexis-RBA/Windows-Self-Service/.github/workflows/cleanup-definition.yml@master
+    with: 
+      base: 'windows-201*'
+      region: 'eu-west-2'
+    secrets: inherit
+
+# US Ohio
+  cleanup-bridger-ohio:
+    name: Bridger-OHIO
+    needs: build-bridger-base
+    uses: LexisNexis-RBA/Windows-Self-Service/.github/workflows/cleanup-definition.yml@master
+    with: 
+      base: 'bridger-base-201*'
+      region: 'us-east-2'
+    secrets: inherit
+
+  cleanup-clm-ohio:
+    name: CLM-OHIO
+    needs: build-clm-base
+    uses: LexisNexis-RBA/Windows-Self-Service/.github/workflows/cleanup-definition.yml@master
+    with: 
+      base: 'clm-base-201*'
+      region: 'us-east-2'
+    secrets: inherit
+
+  cleanup-windows-ohio:
+    name: WINDOWS-OHIO
+    needs: [build-bridger-base, build-clm-base]
+    uses: LexisNexis-RBA/Windows-Self-Service/.github/workflows/cleanup-definition.yml@master
+    with: 
+      base: 'windows-201*'
+      region: 'us-east-2'
+    secrets: inherit
+  
+# US Virginia
+  cleanup-bridger-virginia:
+    name: Bridger-VIRGINIA
+    needs: build-bridger-base
+    uses: LexisNexis-RBA/Windows-Self-Service/.github/workflows/cleanup-definition.yml@master
+    with: 
+      base: 'bridger-base-201*'
+      region: 'us-east-1'
+    secrets: inherit
+  
+  cleanup-clm-virginia:
+    name: CLM-VIRGINIA
+    needs: build-clm-base
+    uses: LexisNexis-RBA/Windows-Self-Service/.github/workflows/cleanup-definition.yml@master
+    with: 
+      base: 'clm-base-201*'
+      region: 'us-east-1'
+    secrets: inherit
+
+  cleanup-windows-virginia:
+    name: WINDOWS-VIRGINIA
+    needs: [build-bridger-base, build-clm-base]
+    uses: LexisNexis-RBA/Windows-Self-Service/.github/workflows/cleanup-definition.yml@master
+    with: 
+      base: 'windows-201*'
+      region: 'us-east-1'
+    secrets: inherit
+  
+
+
+  
