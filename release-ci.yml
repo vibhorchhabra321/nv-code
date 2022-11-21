@@ -1,0 +1,215 @@
+#########
+# Setup #
+#########
+
+image: docker:latest
+
+services:
+  - name: docker:dind
+    command: ["--mtu=1400"]
+
+before_script:
+  - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+  - docker pull $CI_REGISTRY/tas/ansible/ansible/base
+ 
+##########
+# Stages #
+##########
+stages:
+  - "Build"
+ 
+#############
+# Templates #
+#############
+
+.build: &build_definition
+  tags:
+    - docker
+    - london
+  script:
+    - touch $build_type-ami-id
+    - docker run
+     -v `pwd`:/etc/ansible/
+     --add-host=<hostname>:<ip address>
+     --env aws_username=$AWS_USERNAME
+     --env aws_password=$AWS_PASSWORD
+     --env aws_account=$AWS_ACCOUNT
+     $CI_REGISTRY/tas/ansible/ansible/base
+     ansible-playbook main.yml
+     --extra-vars "
+     pipeline_id=$CI_PIPELINE_ID 
+     bundle=$BUNDLE 
+     prefix=$PREFIX
+     build_type=$build_type
+     aws_vpc=$AWS_VPC
+     aws_region=$AWS_REGION
+     aws_subnet=$AWS_SUBNET
+     gitlab_username=$GITLAB_USERNAME
+     gitlab_password=$GITLAB_PASSWORD
+     build_environment=$ENVIRONMENT
+     vault_path=$VAULT_PATH
+     vault_token=$VAULT_TOKEN
+     fsx_host=$FSX_HOST
+     fsx_user=$FSX_USER
+     fsx_password='$FSX_PASSWORD'" -v
+    - printf '\n\n' && echo "$build_type Build complete! AMI ID is:" && cat $build_type-ami-id && printf '\n\n'
+  artifacts:
+    untracked: true
+  when: manual
+  allow_failure: false
+
+#########
+# Build #
+#########
+
+##
+## Web
+##
+
+"Build: Web":
+  extends: .build
+  stage: "Build"
+  variables:
+    build_type: "web"
+  except:
+    variables:
+      - $TYPE == "ln.systemutilities"
+      - $TYPE == "services"
+      - $TYPE == "batch_searchcore2"
+      - $TYPE == "searchcore2"
+  only:
+    variables:
+      - $BUNDLE
+
+##
+## Batch
+##
+
+#"Build: Batch":
+#  extends: .build
+#  stage: "Build"
+#  variables:
+#    build_type: "batch_searchcore"
+#  except:
+#    variables:
+#      - $TYPE == "web"
+#      - $TYPE == "searchcore"
+#      - $TYPE == "services"
+#      - $TYPE == "batch_searchcore2"
+#      - $TYPE == "searchcore2"
+#  only:
+#    variables:
+#      - $BUNDLE
+
+##
+## Searchcore
+##
+
+#"Build: Searchcore":
+#  extends: .build
+#  stage: "Build"
+#  variables:
+#    build_type: "searchcore"
+#  except:
+#    variables:
+#      - $TYPE == "web"
+#      - $TYPE == "batch_searchcore"
+#      - $TYPE == "services"
+#      - $TYPE == "batch_searchcore2"
+#      - $TYPE == "searchcore2"
+#  only:
+#    variables:
+#      - $BUNDLE
+
+##
+## Services
+##
+
+"Build: Services":
+  extends: .build
+  stage: "Build"
+  variables:
+    build_type: "services"
+  except:
+    variables:
+      - $TYPE == "web"
+      - $TYPE == "ln.systemutilities"
+      - $TYPE == "batch_searchcore2"
+      - $TYPE == "searchcore2"
+  only:
+    variables:
+      - $BUNDLE
+
+##
+## Batch SSC
+##
+
+"Build: Batch2":
+  extends: .build
+  stage: "Build"
+  variables:
+    build_type: "batch_searchcore2"
+  except:
+    variables:
+      - $TYPE == "web"
+      - $TYPE == "services"
+      - $TYPE == "ln.systemutilities"
+      - $TYPE == "searchcore2"
+  only:
+    variables:
+      - $BUNDLE
+
+##
+## SSC
+##
+
+"Build: Searchcore2":
+  extends: .build
+  stage: "Build"
+  variables:
+    build_type: "searchcore2"
+  except:
+    variables:
+      - $TYPE == "web"
+      - $TYPE == "services"
+      - $TYPE == "batch_searchcore2"
+      - $TYPE == "ln.systemutilities"
+  only:
+    variables:
+      - $BUNDLE
+
+### COMMENTING OUT UNTIL lnsystemutilities or ln.systemutilities setting has been corrected by XG5 US team
+
+###"Build: ln.systemutilities":
+###  extends: .build
+###  stage: "Build"
+###  variables:
+###      build_type: "ln.systemutilities"
+###  except:
+###    variables:
+###      - $TYPE == "web"
+###      - $TYPE == "services"
+###      - $TYPE == "batch_searchcore2"
+###      - $TYPE == "searchcore2"
+###  only:
+###    variables:
+###      - $BUNDLE
+
+#############
+# Catch All #
+#############
+# This prevents a user running the pipeline without the correct variables.
+# Force all users to launch via the schedules section
+"ERROR":
+  stage: "Build"
+  tags:
+    - docker
+    - london
+  script:
+    - printf '\n\n' && echo "Unable to build!\n Please reference the read me. Required variables missing!" && printf '\n\n'
+  except:
+    refs:
+      - pushes
+      - merge_requests
+    variables:
+      - $BUNDLE
