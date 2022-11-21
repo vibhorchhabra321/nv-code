@@ -1,0 +1,303 @@
+#########
+# Setup #
+#########
+
+image: docker:latest
+
+services:
+  - name: docker:dind
+    command: ["--mtu=1400"]
+
+before_script:
+  - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+  - docker pull $CI_REGISTRY/tas/ansible/ansible/base
+
+##########
+# Stages #
+##########
+stages:
+  - "Build: Base"
+  - "Build: IIS"
+  - "Build: Misc"
+  - "Cleanup"
+
+##############
+# Build AMIs #
+##############
+.build: &build_definition
+  tags:
+    - docker
+    - london
+    - privileged
+  script:
+    - touch $ami_name-id
+    - docker run
+      -v `pwd`:/etc/ansible/
+      --env aws_username=$RISK_USERNAME
+      --env aws_password=$RISK_PASSWORD
+      --env aws_account=$ACCOUNT
+      --env aws_role=ADFS-AdminLinux
+      --add-host=federation.reedelsevier.com:138.12.12.62
+      $CI_REGISTRY/tas/ansible/ansible/base
+      ansible-playbook build/$playbook 
+      --extra-vars "build_name='$build_name' 
+      ami_name='$ami_name' 
+      ami_public='$ami_public' 
+      application='$application' 
+      base='$base' 
+      os='$os' 
+      domain_user='$EU_USERNAME' 
+      domain_password='$EU_PASSWORD'"
+  artifacts:
+    untracked: true
+  allow_failure: false
+
+"2019 Core":
+  extends: .build
+  stage: "Build: Base"
+  variables:
+    playbook: base.yml
+    build_name: 'Weekly Windows 2019 Core Build'
+    ami_name: 'windows-2019-core'
+    application: windows
+    base: 'Windows_Server-2019-English-Core-Base-2*'
+    ami_public: 'true'
+    os: 'Server2019Core'
+  only:
+    - schedules
+
+"2019 Full":
+  extends: .build
+  stage: "Build: Base"
+  variables:
+    playbook: base.yml
+    build_name: 'Weekly Windows 2019 Full Build'
+    ami_name: 'windows-2019-full'
+    application: windows
+    base: 'Windows_Server-2019-English-Full-Base-2*'
+    ami_public: 'true'
+    os: 'Server2019Full'
+  only:
+    - schedules
+
+# IIS
+
+"2019 Core IIS":
+  extends: .build
+  stage: "Build: IIS"
+  variables:
+    playbook: iis.yml
+    build_name: 'Weekly Windows 2019 Core (IIS) Build'
+    ami_name: 'windows-2019-core-iis'
+    application: iis
+    base: 'windows-2019-core*'
+    ami_public: 'false'
+    os: 'Server2019Core'
+  only:
+    - schedules
+  needs: ["2019 Core"]
+
+"2019 Full IIS":
+  extends: .build
+  stage: "Build: IIS"
+  variables:
+    playbook: iis.yml
+    build_name: 'Weekly Windows 2019 Full (IIS) Build'
+    ami_name: 'windows-2019-full-iis'
+    application: iis
+    base: 'windows-2019-full*'
+    ami_public: 'false'
+    os: 'Server2019Full'
+  only:
+    - schedules
+  needs: ["2019 Full"]
+
+# Containers
+
+"2019 Containers":
+  extends: .build
+  stage: "Build: Misc"
+  variables:
+    playbook: containers.yml
+    build_name: 'Weekly Windows 2019 Core (Containers) Build'
+    ami_name: 'windows-2019-core-containers'
+    application: containers
+    base: 'windows-2019-core*'
+    ami_public: 'false'
+    os: 'Server2019Core'
+  only:
+    - schedules
+  needs: ["2019 Core"]
+
+# Bridger
+"Bridger Base":
+  extends: .build
+  stage: "Build: Misc"
+  variables:
+    playbook: bridger.yml
+    build_name: 'Weekly Bridger 2019 Base Build'
+    ami_name: 'bridger-base-2019'
+    application: bridger
+    base: 'windows-2019-full-iis*'
+    ami_public: 'false'
+    os: 'Server2019'
+  only:
+    - schedules
+  needs: ["2019 Full IIS"]
+
+# CLM
+"CLM Base":
+  extends: .build
+  stage: "Build: Misc"
+  variables:
+    playbook: clm.yml
+    build_name: 'Weekly CLM 2019 Base Build'
+    ami_name: 'clm-base-2019'
+    application: clm
+    base: 'windows-2019-full-iis*'
+    ami_public: 'false'
+    os: 'Server2019'
+  only:
+    - schedules
+  needs: ["2019 Full IIS"]
+
+################
+# Cleanup AMIs #
+################
+.cleanup: &cleanup_definition
+  tags:
+    - docker
+    - london
+    - privileged
+  script:
+    - docker run
+      -v `pwd`:/etc/ansible/
+      --env aws_username=$RISK_USERNAME
+      --env aws_password=$RISK_PASSWORD
+      --env aws_account=$ACCOUNT
+      --env aws_role=ADFS-AdminLinux
+      --add-host=federation.reedelsevier.com:138.12.12.62
+      $CI_REGISTRY/tas/ansible/ansible/base
+      ansible-playbook build/cleanup.yml
+      --extra-vars "base='$base' region='$region'"
+  allow_failure: false
+
+# Ireland
+"Bridger-Ireland":
+  extends: .cleanup
+  stage: "Cleanup"
+  variables:
+    base: 'bridger-base-201*'
+    region: 'eu-west-1'
+  only:
+    - schedules
+  needs: ["Bridger Base"]
+
+"CLM-Ireland":
+  extends: .cleanup
+  stage: "Cleanup"
+  variables:
+    base: 'clm-base-201*'
+    region: 'eu-west-1'
+  only:
+    - schedules
+  needs: ["CLM Base"]
+
+"Windows-Ireland":
+  extends: .cleanup
+  stage: "Cleanup"
+  variables:
+    base: 'windows-201*'
+    region: 'eu-west-1'
+  only:
+    - schedules
+
+# UK
+"Bridger-UK":
+  extends: .cleanup
+  stage: "Cleanup"
+  variables:
+    base: 'bridger-base-201*'
+    region: 'eu-west-2'
+  only:
+    - schedules
+  needs: ["Bridger Base"]
+
+"CLM-UK":
+  extends: .cleanup
+  stage: "Cleanup"
+  variables:
+    base: 'clm-base-201*'
+    region: 'eu-west-2'
+  only:
+    - schedules
+  needs: ["CLM Base"]
+
+"Windows-UK":
+  extends: .cleanup
+  stage: "Cleanup"
+  variables:
+    base: 'windows-201*'
+    region: 'eu-west-2'
+  only:
+    - schedules
+    
+# US Ohio
+"Bridger-Ohio":
+  extends: .cleanup
+  stage: "Cleanup"
+  variables:
+    base: 'bridger-base-201*'
+    region: 'us-east-2'
+  only:
+    - schedules
+  needs: ["Bridger Base"]
+
+"CLM-Ohio":
+  extends: .cleanup
+  stage: "Cleanup"
+  variables:
+    base: 'clm-base-201*'
+    region: 'us-east-2'
+  only:
+    - schedules
+  needs: ["CLM Base"]
+
+"Windows-Ohio":
+  extends: .cleanup
+  stage: "Cleanup"
+  variables:
+    base: 'windows-201*'
+    region: 'us-east-2'
+  only:
+    - schedules
+
+# US Virginia
+"Bridger-Virginia":
+  extends: .cleanup
+  stage: "Cleanup"
+  variables:
+    base: 'bridger-base-201*'
+    region: 'us-east-1'
+  only:
+    - schedules
+  needs: ["Bridger Base"]
+
+"CLM-Virginia":
+  extends: .cleanup
+  stage: "Cleanup"
+  variables:
+    base: 'clm-base-201*'
+    region: 'us-east-1'
+  only:
+    - schedules
+  needs: ["CLM Base"]
+
+"Windows-Virginia":
+  extends: .cleanup
+  stage: "Cleanup"
+  variables:
+    base: 'windows-201*'
+    region: 'us-east-1'
+  only:
+    - schedules
