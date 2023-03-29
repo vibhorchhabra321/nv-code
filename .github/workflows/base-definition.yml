@@ -26,3 +26,9 @@ on:
         type: string
         required: true
         description: 'aws_account'
+jobs:
+  my_job:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Echo Hello World
+      run: echo "Hello World"
