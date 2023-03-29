@@ -1,0 +1,73 @@
+name: Build
+on:
+  workflow_call:  
+    inputs:
+      bundle:
+        type: string
+        required: true
+        description: 'BUNDLE RELEASE NUMBER'
+      prefix:
+        type: string
+        required: true
+        description: 'PREFIX'
+      build_type:
+        type: string
+        required: true
+        description: 'BUILD TYPE'
+      aws_region:
+        type: string
+        required: true
+        description: 'aws_region'
+      build_environment:
+        type: string
+        required: true
+        description: 'build_environment'
+      aws_account:
+        type: string
+        required: true
+        description: 'aws_account'
+
+env:
+  BUNDLE: ${{ inputs.bundle }}
+  REGISTRY: ghcr.io
+  AWS_ACCOUNT: ${{ inputs.aws_account }}
+  AWS_REGION: ${{ inputs.aws_region }}
+
+  build:
+    runs-on: [Linux, ntt, uk, self-hosted]
+    environment: ${{ inputs.prefix }}
+    permissions:
+      packages: read
+      id-token: write
+      contents: write
+    steps:
+      - name: checkout code
+        uses: actions/checkout@v3
+      
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 16
+
+      - name: log in to container registry
+        uses: docker/login-action@f054a8b539a109f9f41c372932f1ae047eff08c9
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+          
+      - name: run base ansible playbook
+        env:
+          BUNDLE: ${{ inputs.bundle }}
+          PREFIX: ${{ inputs.prefix }}
+          BUILD_TYPE: ${{ inputs.build_type }}
+          AWS_REGION: ${{ inputs.aws_region }}
+          BUILD_ENVIRONMENT: ${{ inputs.build_environment }}
+        run: |
+          touch ${{ inputs.build_type }}-ami-id
+          echo ${{ github.run_id }}
+
+      - name: Upload AMI ID Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          path: ${{ inputs.build_type }}-ami-id
+          
