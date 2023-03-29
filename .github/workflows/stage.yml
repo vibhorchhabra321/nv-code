@@ -11,3 +11,6 @@ jobs:
   web:
     name: "Test Hello World"
     uses: vibhorchhabra321/nv-code/.github/workflows/base-definition.yml@main
+    with: 
+      bundle: ${{ github.event.inputs.bundle }}
+      prefix: "hello"
