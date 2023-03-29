@@ -1,0 +1,13 @@
+name: EU-SERVICE STAGE Pipeline
+on:
+  workflow_dispatch:
+    inputs: 
+      bundle: 
+        type: string
+        description: BUNDLE NUMBER
+        required: true
+        
+jobs:
+  web:
+    name: "Test Hello World"
+    uses: vibhorchhabra321/nv-code/.github/workflows/base-definition.yml@master
