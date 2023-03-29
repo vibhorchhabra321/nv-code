@@ -10,4 +10,4 @@ on:
 jobs:
   web:
     name: "Test Hello World"
-    uses: vibhorchhabra321/nv-code/.github/workflows/base-definition.yml@master
+    uses: vibhorchhabra321/nv-code/.github/workflows/base-definition.yml@main
