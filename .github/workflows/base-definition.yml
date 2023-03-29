@@ -31,4 +31,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Echo Hello World
-      run: echo "Hello World"
+      env:
+        BUNDLE: ${{ inputs.bundle }}
+      run: echo ${{ inputs.bundle }}
