@@ -12,19 +12,19 @@ on:
         description: 'PREFIX'
       build_type:
         type: string
-        required: true
+        required: false
         description: 'BUILD TYPE'
       aws_region:
         type: string
-        required: true
+        required: false
         description: 'aws_region'
       build_environment:
         type: string
-        required: true
+        required: false
         description: 'build_environment'
       aws_account:
         type: string
-        required: true
+        required: false
         description: 'aws_account'
 jobs:
   my_job:
