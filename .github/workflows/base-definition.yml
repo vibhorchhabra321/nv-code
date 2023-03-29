@@ -26,9 +26,3 @@ on:
         type: string
         required: true
         description: 'aws_account'
-
-env:
-  BUNDLE: ${{ inputs.bundle }}
-  REGISTRY: ghcr.io
-  AWS_ACCOUNT: ${{ inputs.aws_account }}
-  AWS_REGION: ${{ inputs.aws_region }}
