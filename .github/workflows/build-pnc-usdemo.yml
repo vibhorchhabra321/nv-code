@@ -1,0 +1,16 @@
+name: CLM PNC USDemo Pipeline
+on:
+  workflow_dispatch:
+    inputs: 
+      release: 
+        type: string
+        description: RELEASE NUMBER
+        required: true
+        
+jobs:
+  web:
+    name: "Test Hello World"
+    uses: vibhorchhabra321/nv-code/.github/workflows/base-definition.yml@main
+    with: 
+      bundle: ${{ github.event.inputs.release }}
+      prefix: "pnc-usdemo"

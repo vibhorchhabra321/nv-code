@@ -2,10 +2,10 @@ name: Build
 on:
   workflow_call:  
     inputs:
-      bundle:
+      release:
         type: string
         required: true
-        description: 'BUNDLE RELEASE NUMBER'
+        description: 'RELEASE NUMBER'
       prefix:
         type: string
         required: true
@@ -26,11 +26,20 @@ on:
         type: string
         required: false
         description: 'aws_account'
+
+env:
+  BUNDLE: ${{ inputs.release }}
+  REGISTRY: ghcr.io
+  AWS_ACCOUNT: ${{ inputs.aws_account }}
+  AWS_REGION: ${{ inputs.aws_region }}
+
+
 jobs:
   my_job:
     runs-on: ubuntu-latest
+    environment: ${{ inputs.prefix }}
     steps:
     - name: Echo Hello World
       env:
-        BUNDLE: ${{ inputs.bundle }}
-      run: echo ${{ inputs.bundle }}
+        BUNDLE: ${{ inputs.release }}
+      run: echo ${{ inputs.release }} ${{ secrets.AWS_ACCOUNT }}
