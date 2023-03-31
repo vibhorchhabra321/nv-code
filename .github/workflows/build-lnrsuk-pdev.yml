@@ -1,0 +1,22 @@
+name: CLM LNRSUK PDEV Pipeline
+on:
+  workflow_dispatch:
+    inputs: 
+      release: 
+        type: string
+        description: RELEASE NUMBER
+        required: true
+        
+jobs:
+  web:
+    name: Build LNRSUK PDEV [ RELEASE NO. ${{ github.event.inputs.release }} ]
+    uses: vibhorchhabra321/nv-code/.github/workflows/base-definition.yml@main
+    with: 
+      release: ${{ github.event.inputs.release }}
+      prefix: lnrsuk-pdev
+      aws_region: eu-west-1
+      aws_account: 123456
+      clm_fqdn: txt.aws.com
+      environment: pdev
+      client: lnrsuk
+    secrets: inherit

@@ -1,0 +1,22 @@
+name: CLM LNRSUK TMXDEMO Pipeline
+on:
+  workflow_dispatch:
+    inputs: 
+      release: 
+        type: string
+        description: RELEASE NUMBER
+        required: true
+        
+jobs:
+  web:
+    name: Build LNRSUK TMXDEMO [ RELEASE NO. ${{ github.event.inputs.release }} ]
+    uses: vibhorchhabra321/nv-code/.github/workflows/base-definition.yml@main
+    with: 
+      release: ${{ github.event.inputs.release }}
+      prefix: lnrsuk-tmxdemo
+      aws_region: eu-west-1
+      aws_account: 123456
+      clm_fqdn: txt.aws.com
+      environment: tmxdemo
+      client: lnrsuk
+    secrets: inherit

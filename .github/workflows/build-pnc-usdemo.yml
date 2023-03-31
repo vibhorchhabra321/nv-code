@@ -9,7 +9,7 @@ on:
         
 jobs:
   web:
-    name: "Test Hello World"
+    name: Build PNC USDEMO [ RELEASE NO. ${{ github.event.inputs.release }} ]
     uses: vibhorchhabra321/nv-code/.github/workflows/base-definition.yml@main
     with: 
       release: ${{ github.event.inputs.release }}
