@@ -12,24 +12,24 @@ on:
         description: 'PREFIX'
       aws_account:
         type: string
-        required: false
-        description: 'aws_account'
+        required: true
+        description: 'AWS ACCOUNT'
       aws_region:
         type: string
-        required: false
-        description: 'aws_region'
+        required: true
+        description: 'AWS REGION'
       client:
         type: string
         required: true
-        description: 'Client'
+        description: 'CLIENT'
       clm_fqdn:
         type: string
-        required: false
-        description: 'clm_fqdn'
+        required: true
+        description: 'CLM FQDN'
       environment:
         type: string
         required: false
-        description: 'Environment'
+        description: 'ENVIRONMENT'
 
 env:
   BUNDLE: ${{ inputs.release }}
@@ -41,12 +41,11 @@ env:
 jobs:
   my_job:
     runs-on: ubuntu-latest
-    environment: pnc-usdemo
+    environment: ${{ inputs.prefix }}
     steps:
-    - name: Echo Hello World
+    - name: Build PNC USDEMO [ RELEASE NO. ${{ github.event.inputs.release }} ]
       env:
-        ACTIONS_STEP_DEBUG: true
-        BUNDLE: ${{ inputs.release }}
+        RELEASE: ${{ inputs.release }}
       run: echo ${{ inputs.release }} /
            echo ${{ inputs.prefix }} /
            echo ${{ inputs.aws_region }} /
