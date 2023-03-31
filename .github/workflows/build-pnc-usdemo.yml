@@ -1,4 +1,4 @@
-name: CLM PNC USDemo Pipeline
+name: CLM PNC USDEMO Pipeline
 on:
   workflow_dispatch:
     inputs: 

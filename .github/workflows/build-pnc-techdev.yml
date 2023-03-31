@@ -1,4 +1,4 @@
-name: CLM PNC TechDev Pipeline
+name: CLM PNC TECHDEV Pipeline
 on:
   workflow_dispatch:
     inputs: 
