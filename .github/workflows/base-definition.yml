@@ -43,7 +43,7 @@ jobs:
     runs-on: ubuntu-latest
     environment: ${{ inputs.prefix }}
     steps:
-    - name: Build PNC USDEMO [ RELEASE NO. ${{ github.event.inputs.release }} ]
+    - name: Run Ansible
       env:
         RELEASE: ${{ inputs.release }}
       run: echo ${{ inputs.release }} /
