@@ -14,3 +14,4 @@ jobs:
     with: 
       release: ${{ github.event.inputs.release }}
       prefix: "pnc-usdemo"
+    secrets: inherit
