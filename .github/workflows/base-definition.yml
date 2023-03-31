@@ -10,22 +10,26 @@ on:
         type: string
         required: true
         description: 'PREFIX'
-      build_type:
-        type: string
-        required: false
-        description: 'BUILD TYPE'
-      aws_region:
-        type: string
-        required: false
-        description: 'aws_region'
-      build_environment:
-        type: string
-        required: false
-        description: 'build_environment'
       aws_account:
         type: string
         required: false
         description: 'aws_account'
+      aws_region:
+        type: string
+        required: false
+        description: 'aws_region'
+      client:
+        type: string
+        required: true
+        description: 'Client'
+      clm_fqdn:
+        type: string
+        required: false
+        description: 'clm_fqdn'
+      environment:
+        type: string
+        required: false
+        description: 'Environment'
 
 env:
   BUNDLE: ${{ inputs.release }}
@@ -43,4 +47,11 @@ jobs:
       env:
         ACTIONS_STEP_DEBUG: true
         BUNDLE: ${{ inputs.release }}
-      run: echo ${{ inputs.release }} ${{ secrets.AWS_ACCOUNT }}
+      run: echo ${{ inputs.release }} /
+           echo ${{ inputs.prefix }} /
+           echo ${{ inputs.aws_region }} /
+           echo ${{ inputs.aws_account }} /
+           echo ${{ inputs.clm_fqdn }} /
+           echo ${{ inputs.environment }} /
+           echo ${{ inputs.client }} /
+           echo ${{ secrets.AWS_ACCOUNT }}
