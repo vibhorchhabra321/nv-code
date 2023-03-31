@@ -41,5 +41,6 @@ jobs:
     steps:
     - name: Echo Hello World
       env:
+        ACTIONS_STEP_DEBUG: true
         BUNDLE: ${{ inputs.release }}
       run: echo ${{ inputs.release }} ${{ secrets.AWS_SUBNET }}
