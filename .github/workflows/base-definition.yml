@@ -42,4 +42,4 @@ jobs:
     - name: Echo Hello World
       env:
         BUNDLE: ${{ inputs.release }}
-      run: echo ${{ inputs.release }} ${{ secrets.AWS_ACCOUNT }}
+      run: echo ${{ inputs.release }} ${{ secrets.AWS_SUBNET }}
