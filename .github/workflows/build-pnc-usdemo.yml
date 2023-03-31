@@ -12,5 +12,5 @@ jobs:
     name: "Test Hello World"
     uses: vibhorchhabra321/nv-code/.github/workflows/base-definition.yml@main
     with: 
-      bundle: ${{ github.event.inputs.release }}
+      release: ${{ github.event.inputs.release }}
       prefix: "pnc-usdemo"
