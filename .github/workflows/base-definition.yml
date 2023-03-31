@@ -37,7 +37,7 @@ env:
 jobs:
   my_job:
     runs-on: ubuntu-latest
-    environment: ${{ inputs.prefix }}
+    environment: pnc-usdemo
     steps:
     - name: Echo Hello World
       env:
