@@ -39,7 +39,7 @@ env:
 
 
 jobs:
-  my_job:
+  build:
     runs-on: ubuntu-latest
     environment: ${{ inputs.prefix }}
     steps:
