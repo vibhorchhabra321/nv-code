@@ -13,5 +13,5 @@ jobs:
     uses: vibhorchhabra321/nv-code/.github/workflows/base-definition.yml@main
     with: 
       release: ${{ github.event.inputs.release }}
-      prefix: "pnc-usdemo"
+      prefix: pnc-usdemo
     secrets: inherit
