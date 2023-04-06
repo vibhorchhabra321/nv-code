@@ -40,21 +40,49 @@ env:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: [Linux, ntt, uk, self-hosted]
     environment: ${{ inputs.prefix }}
+    permissions:
+      packages: read
+      id-token: write
+      contents: write
     steps:
-    - name: Create instance-id and instance-ip files
+      - name: checkout code
+        uses: actions/checkout@v3
+      
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 16
+
+      - name: log in to container registry
+        uses: docker/login-action@f054a8b539a109f9f41c372932f1ae047eff08c9
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: pull ansible base image
+        run: docker pull ${{ env.REGISTRY }}/lexisnexis-rba/tas/windows-self-service/ansible:v1
+        
+      - name: configure aws credentials
+        uses: aws-actions/configure-aws-credentials@master
+        with: 
+          aws-region: ${{ env.AWS_REGION }}
+          role-to-assume: arn:aws:iam::${{ env.AWS_ACCOUNT }}:role/github-ADFS-AdminLinux-xg5-release
+          role-session-name: XG5GithubSession
+
+      - name: Create instance-id and instance-ip files
         run: |
           touch instance-id
           touch instance-ip
       
-    - name: Run Ansible
-      env:
-        AWS_USERNAME: ${{ secrets.AWS_USERNAME }}
-        AWS_PASSWORD: ${{ secrets.AWS_PASSWORD }}
-        AWS_ACCOUNT: ${{ env.AWS_ACCOUNT }}
-        RELEASE: ${{ inputs.release }}
-      run: |
+      - name: Run Ansible
+        env:
+          AWS_USERNAME: ${{ secrets.AWS_USERNAME }}
+          AWS_PASSWORD: ${{ secrets.AWS_PASSWORD }}
+          AWS_ACCOUNT: ${{ env.AWS_ACCOUNT }}
+          RELEASE: ${{ inputs.release }}
+        run: |
           docker run \
           -v `pwd`:/etc/ansible/ \
           --add-host=federation.reedelsevier.com:138.12.12.62 \
@@ -78,12 +106,12 @@ jobs:
           vault_token=${{ secrets.VAULT_TOKEN }}" \
           -v
 
-    - name: Show instance IP and AMI ID
-      run: |
-        printf '\n\nBuild complete! Instance is accessible at:\n' && cat instance-ip && printf '\n\n'
-        printf 'AMI ID:\n' && cat ami-id && printf '\n\n'
+      - name: Show instance IP and AMI ID
+        run: |
+          printf '\n\nBuild complete! Instance is accessible at:\n' && cat instance-ip && printf '\n\n'
+          printf 'AMI ID:\n' && cat ami-id && printf '\n\n'
     
-    - name: Upload AMI ID Artifact
-      uses: actions/upload-artifact@v3
-      with:
-        path: ami-id
+      - name: Upload AMI ID Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          path: ami-id
