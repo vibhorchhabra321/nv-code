@@ -1,0 +1,128 @@
+#########
+# Setup #
+#########
+
+# dind runners
+# image: docker:latest
+
+# services:
+#   - name: docker:dind
+#     command: ["--mtu=1400"]
+
+# Kubernetes runners (boca-prod, alpha-prod)
+image: docker:18.09-dind
+
+services:
+  - name: docker:18.09-dind
+    command: ["--mtu=1300"]
+
+variables:
+  DOCKER_DRIVER: overlay
+  DOCKER_HOST: tcp://localhost:2375
+
+before_script:
+  - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+  - docker pull $CI_REGISTRY/tas/ansible/ansible/base
+ 
+##########
+# Stages #
+##########
+stages:
+  - "Build"
+  - "Cleanup"
+ 
+#############
+# Build AMI #
+#############
+
+"Build AMI":
+  stage: Build
+  tags:
+    - docker
+    #- icboca
+    #- oldboca
+    #- boca
+    - alpha-prod
+    #- london
+  script:
+    - touch instance-id && touch instance-ip
+    - docker run
+     -v `pwd`:/etc/ansible/
+     --add-host=federation.reedelsevier.com:138.12.12.62
+     --env aws_username=$AWS_USERNAME
+     --env aws_password=$AWS_PASSWORD
+     --env aws_account=$AWS_ACCOUNT
+     $CI_REGISTRY/tas/ansible/ansible/base
+     ansible-playbook main.yml
+     --extra-vars "
+     pipeline_id=$CI_PIPELINE_ID 
+     aws_region=$AWS_REGION
+     aws_subnet=$AWS_SUBNET
+     aws_vpc=$AWS_VPC
+     release=$RELEASE
+     client=$CLIENT
+     build_environment=$ENVIRONMENT
+     clm_fqdn=$CLM_FQDN
+     create_bundle=$CREATE_BUNDLE
+     package=$PACKAGE
+     vault_path=$VAULT_PATH
+     vault_token=$VAULT_TOKEN" -v
+    - printf '\n\n' && echo "Build complete! Instance is acessible at:" && cat instance-ip && printf '\n\n'
+    - printf '\n\n' && echo "AMI ID:" && cat ami-id && printf '\n\n'
+  artifacts:
+    untracked: true
+  allow_failure: false
+  only:
+    variables:
+      - $CLIENT
+
+################
+# Cleanup AMIs #
+################
+"Cleanup AMIs":
+  stage: Cleanup
+  tags:
+    - docker
+    #- icboca
+    #- oldboca
+    #- boca
+    - alpha-prod
+    #- london
+  tags:
+    - docker
+    - alpha-prod
+    #- london
+    #- privileged
+  script:
+    - docker run
+      -v `pwd`:/etc/ansible/
+      --env aws_username=$AWS_USERNAME
+      --env aws_password=$AWS_PASSWORD
+      --env aws_account=$AWS_ACCOUNT
+      --add-host=federation.reedelsevier.com:138.12.12.62
+      $CI_REGISTRY/tas/ansible/ansible/base
+      ansible-playbook cleanup.yml
+      --extra-vars "
+      aws_region=$AWS_REGION
+      client=$CLIENT
+      build_environment=$ENVIRONMENT"
+  allow_failure: false
+  only:
+    - schedules
+  needs: ["Build AMI"]
+
+#############
+# Catch All #
+#############
+# This prevents a user running the pipeline without the correct variables.
+# Force all users to launch via the schedules section
+"ERROR":
+  stage: "Build"
+  script:
+    - printf '\n\n' && echo "Unable to build!\n Please reference the read me. Required variables missing!" && printf '\n\n'
+  except:
+    refs:
+      - pushes
+      - merge_requests
+    variables:
+      - $CLIENT

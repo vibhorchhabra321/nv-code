@@ -1,0 +1,97 @@
+name: Build
+on:
+  workflow_call:  
+    inputs:
+      bundle:
+        type: string
+        required: true
+        description: 'BUNDLE RELEASE NUMBER'
+      prefix:
+        type: string
+        required: true
+        description: 'PREFIX'
+      build_type:
+        type: string
+        required: true
+        description: 'BUILD TYPE'
+      aws_region:
+        type: string
+        required: true
+        description: 'aws_region'
+      build_environment:
+        type: string
+        required: true
+        description: 'build_environment'
+      aws_account:
+        type: string
+        required: true
+        description: 'aws_account'
+
+env:
+  BUNDLE: ${{ inputs.bundle }}
+  REGISTRY: ghcr.io
+  AWS_ACCOUNT: ${{ inputs.aws_account }}
+  AWS_REGION: ${{ inputs.aws_region }}
+
+jobs:
+  build:
+    runs-on: [Linux, ntt, uk, self-hosted]
+    environment: ${{ inputs.prefix }}
+    permissions:
+      packages: read
+      id-token: write
+      contents: write
+    steps:
+      - name: checkout code
+        uses: actions/checkout@v3
+      
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 16
+
+      - name: log in to container registry
+        uses: docker/login-action@f054a8b539a109f9f41c372932f1ae047eff08c9
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: pull ansible base image
+        run: docker pull ${{ env.REGISTRY }}/lexisnexis-rba/tas/windows-self-service/ansible:v1
+        
+      - name: configure aws credentials
+        uses: aws-actions/configure-aws-credentials@master
+        with: 
+          aws-region: ${{ env.AWS_REGION }}
+          role-to-assume: arn:aws:iam::${{ env.AWS_ACCOUNT }}:role/github-ADFS-AdminLinux-xg5-release
+          role-session-name: XG5GithubSession
+          #role-duration-seconds: 7200
+          
+      - name: run base ansible playbook
+        env:
+          BUNDLE: ${{ inputs.bundle }}
+          PREFIX: ${{ inputs.prefix }}
+          BUILD_TYPE: ${{ inputs.build_type }}
+          AWS_REGION: ${{ inputs.aws_region }}
+          BUILD_ENVIRONMENT: ${{ inputs.build_environment }}
+        run: |
+          touch ${{ inputs.build_type }}-ami-id
+          echo ${{ github.run_id }}
+          docker run -v `pwd`:/etc/ansible/ \
+          --add-host=federation.reedelsevier.com:138.12.12.62 \
+          --env aws_username=${{ secrets.AWS_USERNAME }} \
+          --env aws_password=${{ secrets.AWS_PASSWORD }} \
+          ${{ env.REGISTRY }}/lexisnexis-rba/tas/windows-self-service/ansible:v1 \
+          ansible-playbook main.yml --extra-vars "aws_access_key=${AWS_ACCESS_KEY_ID} \
+          aws_secret_key=${AWS_SECRET_ACCESS_KEY} security_token=${AWS_SESSION_TOKEN} \
+          pipeline_id=${{ github.run_id }} bundle='$BUNDLE' prefix='$PREFIX' build_type='$BUILD_TYPE' aws_region='$AWS_REGION' \
+          aws_vpc='${{ secrets.AWS_VPC }}' aws_subnet='${{ secrets.AWS_SUBNET }}' gitlab_username='${{ secrets.GITLAB_USERNAME }}' \
+          gitlab_password='${{ secrets.GITLAB_PASSWORD }}' build_environment='$BUILD_ENVIRONMENT' vault_path='${{ secrets.VAULT_PATH }}' \
+          vault_token='${{ secrets.VAULT_TOKEN }}' fsx_host='${{ secrets.FSX_HOST }}' fsx_user='${{ secrets.FSX_USER }}' fsx_password='${{ secrets.FSX_PASSWORD }}'" -v
+          printf '\n\n' && echo "${{ inputs.build_type }} Build complete! AMI ID is:" && cat ${{ inputs.build_type }}-ami-id && printf '\n\n'
+
+      - name: Upload AMI ID Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          path: ${{ inputs.build_type }}-ami-id
+          

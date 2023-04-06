@@ -1,0 +1,56 @@
+name: Ansible Playbook
+
+on:
+  push:
+    branches:
+      - main
+
+env:
+  INSTANCE_ID: ""
+  INSTANCE_IP: ""
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Create instance-id and instance-ip files
+        run: |
+          touch instance-id
+          touch instance-ip
+
+      - name: Run Ansible playbook
+        env:
+          AWS_USERNAME: ${{ secrets.AWS_USERNAME }}
+          AWS_PASSWORD: ${{ secrets.AWS_PASSWORD }}
+          AWS_ACCOUNT: ${{ secrets.AWS_ACCOUNT }}
+        run: |
+          docker run \
+          -v `pwd`:/etc/ansible/ \
+          --add-host=federation.reedelsevier.com:138.12.12.62 \
+          --env aws_username=$AWS_USERNAME \
+          --env aws_password=$AWS_PASSWORD \
+          --env aws_account=$AWS_ACCOUNT \
+          ${{ secrets.CI_REGISTRY }}/tas/ansible/ansible/base \
+          ansible-playbook main.yml \
+          --extra-vars "
+          pipeline_id=${{ github.run_id }}
+          aws_region=${{ secrets.AWS_REGION }}
+          aws_subnet=${{ secrets.AWS_SUBNET }}
+          aws_vpc=${{ secrets.AWS_VPC }}
+          release=${{ secrets.RELEASE }}
+          client=${{ secrets.CLIENT }}
+          build_environment=${{ secrets.ENVIRONMENT }}
+          clm_fqdn=${{ secrets.CLM_FQDN }}
+          create_bundle=${{ secrets.CREATE_BUNDLE }}
+          package=${{ secrets.PACKAGE }}
+          vault_path=${{ secrets.VAULT_PATH }}
+          vault_token=${{ secrets.VAULT_TOKEN }}" \
+          -v
+
+      - name: Show instance IP and AMI ID
+        run: |
+          printf '\n\nBuild complete! Instance is accessible at:\n' && cat instance-ip && printf '\n\n'
+          printf 'AMI ID:\n' && cat ami-id && printf '\n\n'

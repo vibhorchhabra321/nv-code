@@ -1,0 +1,89 @@
+name: Build AMI Definition
+on:
+  workflow_call:
+    inputs:
+      playbook:
+        description: "playbook file to be used"
+        required: true
+        type: string
+      build_name:
+        description: "name of the ec2 build instance"
+        required: true
+        type: string
+      ami_name:
+        description: "AMI id name"
+        required: true
+        type: string
+      application:
+        description: "Application name"
+        required: true
+        type: string
+      base:
+        description: "Base name"
+        required: true
+        type: string
+      ami_public:
+        description: "Check if ami is public"
+        required: true
+        type: string
+      os:
+        description: "Operating System"
+        required: true
+        type: string
+
+env:
+  REGISTRY: ghcr.io
+  EU_USERNAME: ${{ secrets.EU_USERNAME }}
+  EU_PASSWORD: ${{ secrets.EU_PASSWORD }}
+  
+jobs:
+  build:
+    runs-on: [Linux, ntt, uk, self-hosted]
+    permissions:
+      packages: read
+      id-token: write
+      contents: write
+    steps:
+      - name: checkout code
+        uses: actions/checkout@v2
+
+      - name: log in to container registry
+        uses: docker/login-action@f054a8b539a109f9f41c372932f1ae047eff08c9
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: pull ansible base image
+        run: docker pull ${{ env.REGISTRY }}/lexisnexis-rba/tas/windows-self-service/ansible:v1
+        
+      - name: configure aws credentials
+        uses: aws-actions/configure-aws-credentials@master
+        with: 
+          aws-region: us-west-2
+          role-to-assume: arn:aws:iam::152186781777:role/github-ADFS-AdminLinux-wss
+          role-session-name: WSSGithubSession
+          #role-duration-seconds: 7200
+          
+      - name: run base ansible playbook
+        env:
+          playbook: ${{ inputs.playbook }}
+          build_name: ${{ inputs.build_name }}
+          ami_name: ${{ inputs.ami_name }}
+          application: ${{ inputs.application }}
+          base: ${{ inputs.base }}
+          ami_public: ${{ inputs.ami_public }}
+          os: ${{ inputs.os }}
+        run: |
+          touch $ami_name-id
+          docker run -v `pwd`:/etc/ansible/ \
+          ${{ env.REGISTRY }}/lexisnexis-rba/tas/windows-self-service/ansible:v1 \
+          ansible-playbook build/$playbook --extra-vars "aws_access_key=${AWS_ACCESS_KEY_ID} \
+          aws_secret_key=${AWS_SECRET_ACCESS_KEY} security_token=${AWS_SESSION_TOKEN} \
+          build_name='$build_name' ami_name='$ami_name' ami_public='$ami_public' application='$application' \
+          base='$base' os='$os' domain_user='${{ secrets.EU_USERNAME }}' domain_password='${{ secrets.EU_PASSWORD }}'" 
+
+      - name: Upload AMI ID Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          path: ${{ inputs.ami_name }}-id
